@@ -1,0 +1,38 @@
+library(haven)
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(kableExtra)
+
+# 1. Cargar datos y convertir etiquetas de Stata a texto
+TenderosFU03_Publica <- read_dta("TenderosFU03_Publica.dta") %>%
+  as_factor()
+
+# 2. Detectar nombres de columnas
+col_munic <- grep("munic|depto", names(TenderosFU03_Publica),
+                  ignore.case = TRUE, value = TRUE)[1]
+col_net   <- grep("internet", names(TenderosFU03_Publica),
+                  ignore.case = TRUE, value = TRUE)[1]
+
+# 3. Generar la tabla con columnas independientes
+tabla_cruzada <- TenderosFU03_Publica %>%
+  select(Munic = all_of(col_munic), Uso = all_of(col_net)) %>%
+  filter(!is.na(Munic), !is.na(Uso)) %>%
+  count(Munic, Uso) %>%
+  group_by(Munic) %>%
+  mutate(Porcentaje = sprintf("%.2f%%", (n / sum(n)) * 100)) %>%
+  select(-n) %>%
+  pivot_wider(
+    names_from = Uso,
+    values_from = Porcentaje,
+    values_fill = "0.00%"
+  ) %>%
+  rename("Municipio/departamento" = Munic)
+
+# 4. Renderizar la tabla con alineación y bordes claros
+cols_internet <- ncol(tabla_cruzada) - 1
+
+tabla_cruzada %>%
+  kable(align = c("l", rep("c", cols_internet))) %>%
+  add_header_above(c(" " = 1, "Uso de internet" = cols_internet)) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
