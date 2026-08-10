@@ -2,16 +2,7 @@
 # Taller de GitHub y limpieza básica de datos con dplyr
 # Archivo: limpieza_base_datos.R
 # -----------------------------------------------------------------------------
-#
-# Objetivo:
-# Observar una base con errores y corregir cada problema de manera explícita
-# usando mutate() y recode().
-#
-# No es necesario construir funciones automáticas.
-# -----------------------------------------------------------------------------#
 
-# Ejecute esta línea una sola vez si no tiene instalado tidyverse:
-# install.packages("tidyverse")
 library(tidyverse)
 
 ruta_entrada <- "../datos/base_sucia_encuesta.txt"
@@ -19,9 +10,6 @@ ruta_salida  <- "../resultados/base_limpia.csv"
 
 
 # 0. Inspección inicial --------------------------------------------------------
-
-# Lea unas pocas líneas sin modificar el archivo.
-# ¿Se ven correctamente las tildes, la ñ y los signos especiales?
 
 lineas_iniciales <- readLines(
   ruta_entrada,
@@ -31,31 +19,14 @@ lineas_iniciales <- readLines(
 
 print(lineas_iniciales)
 
-# TODO 1:
-# Identifique:
-# a) el delimitador;
-# b) la codificación del archivo;
-# c) las cadenas que representan valores perdidos.
-
 
 # 1. Importar la base ----------------------------------------------------------
 
-
-# TODO 2:
-# Complete la importación.
-#
-# Pistas:
-# - La función read_delim() permite indicar el delimitador.
-# - locale(encoding = "...") permite indicar la codificación.
-# - El argumento na permite definir varias formas de representar faltantes.
-# - Conviene importar inicialmente todas las columnas como texto para evitar
-#   conversiones automáticas incorrectas.
-
 base <- read_delim(
   file = ruta_entrada,
-  delim = "COMPLETAR",
-  locale = locale(encoding = "COMPLETAR"),
-  na = c("COMPLETAR"),
+  delim = ";",
+  locale = locale(encoding = "UTF-8"),
+  na = c("", "N/D", "-"),
   col_types = cols(.default = col_character()),
   trim_ws = FALSE,
   show_col_types = FALSE
@@ -67,21 +38,7 @@ print(base)
 
 # 2. Corregir los nombres ------------------------------------------------------
 
-# Para limpieza del texto debe:
-# - eliminar espacios al inicio y al final;
-# - estandarizar nombres y ciudades con mayúscula inicial;
-# - estandarizar trabaja como "Sí" o "No".
-#
-# Pistas:
-# - str_squish()
-# - str_to_title()
-# - str_to_lower()
-# - case_when()
-
 unique(base$nombre)
-
-# mutate() modifica o crea columnas.
-# recode() reemplaza valores específicos por otros valores.
 
 base <- base %>%
   mutate(
@@ -91,11 +48,9 @@ base <- base %>%
       "JOSE MUÑOZ" = "Jose Muñoz",
       "Lucía Pérez" = "Lucía Pérez",
       "Andrés Niño" = "Andrés Niño",
-      "María José Goméz" = "María José Goméz",
+      "María José Gómez" = "María José Gómez",
       "Camilo Rojas" = "Camilo Rojas",
       "Sofía León" = "Sofía León"
-      # TODO: agregue aquí el otro nombre que necesita corrección.
-      # Recuerde poner una coma al final de la línea anterior.
     )
   )
 
@@ -114,11 +69,7 @@ base <- base %>%
       "Barranquilla" = "Barranquilla",
       " bogotá" = "Bogotá",
       "Cartagena" = "Cartagena",
-      "Pereira" = "Pereira",
-      # TODO: agregue las demás ciudades que necesitan corrección.
-      #
-      # Ejemplo:
-      # "valor original" = "valor corregido",
+      "Pereira" = "Pereira"
     )
   )
 
@@ -126,8 +77,6 @@ base <- base %>%
 # 4. Corregir las fechas -------------------------------------------------------
 
 unique(base$fecha_encuesta)
-
-# Primero, todas las fechas deben quedar escritas como AAAA-MM-DD.
 
 base <- base %>%
   mutate(
@@ -139,13 +88,9 @@ base <- base %>%
       "06-08-26" = "2026-08-06",
       "2026/08/07" = "2026-08-07",
       "08.08.2026" = "2026-08-08",
-      "08/13/2026" = "2026-08-13",
-      # TODO: agregue una línea para cada fecha que todavía
-      # no tenga el formato AAAA-MM-DD.
+      "08/13/2026" = "2026-08-13"
     )
   )
-
-# Después, convierta la columna de texto al tipo fecha.
 
 base <- base %>%
   mutate(
@@ -160,9 +105,6 @@ base <- base %>%
 
 unique(base$ingreso_mensual)
 
-# Quite manualmente los separadores de miles.
-# Use punto únicamente para separar los decimales.
-
 base <- base %>%
   mutate(
     ingreso_mensual = recode(
@@ -170,15 +112,12 @@ base <- base %>%
       "1.250.000,50" = "1250000.50",
       "950000.75" = "950000.75",
       "1,100,000.00" = "1100000.00",
-      "N/D" = "N/D",
+      "N/D" = NA_character_,
       "875.500,00" = "875500.00",
-      "1 050 000" = "10500.00",
-      "725000" = "7250.00",
-      # TODO: agregue los demás ingresos que necesitan corrección.
+      "1 050 000,25" = "1050000.25",
+      "725000" = "725000"
     )
   )
-
-# Convertir la columna de texto a número.
 
 base <- base %>%
   mutate(
@@ -190,8 +129,6 @@ base <- base %>%
 
 unique(base$nota_promedio)
 
-# Todas las notas deben usar punto como separador decimal.
-
 base <- base %>%
   mutate(
     nota_promedio = recode(
@@ -201,14 +138,10 @@ base <- base %>%
       "4,0" = "4.0",
       "3,5" = "3.5",
       "4.5" = "4.5",
-      "25" = "2.5",
-      "4,1" = "4.1",
-      
-      # TODO: agregue las demás notas que usan coma.
+      "-" = NA_character_,
+      "4,1" = "4.1"
     )
   )
-
-# Convertir la columna de texto a número.
 
 base <- base %>%
   mutate(
@@ -220,8 +153,6 @@ base <- base %>%
 
 unique(base$trabaja)
 
-# Todos los valores deben quedar exactamente como "Sí" o "No".
-
 base <- base %>%
   mutate(
     trabaja = recode(
@@ -230,11 +161,8 @@ base <- base %>%
       "si " = "Sí",
       "No" = "No",
       "NO" = "No",
-      "Sí" = "Sí",
       "sí" = "Sí",
-      "no" = "No",
-      
-      # TODO: agregue las demás maneras de escribir Sí y No.
+      "no" = "No"
     )
   )
 
@@ -255,10 +183,6 @@ summary(base)
 
 
 # 10. Comprobaciones automáticas ----------------------------------------------
-#
-# Estas líneas fueron preparadas por el profesor.
-# No es necesario modificarlas.
-# Si el trabajo está completo, se ejecutarán sin mostrar errores.
 
 stopifnot(nrow(base) == 7)
 stopifnot(length(unique(base$id)) == 7)
@@ -272,11 +196,11 @@ stopifnot(all(na.omit(base$trabaja) %in% c("Sí", "No")))
 
 # 11. Exportar la base ---------------------------------------------------------
 
-dir.create("resultados", showWarnings = FALSE)
+dir.create("../resultados", showWarnings = FALSE)
 
 write_csv(
   base,
-  "resultados/base_limpia.csv",
+  ruta_salida,
   na = ""
 )
 
