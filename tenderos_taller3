@@ -1,38 +1,100 @@
+# =========================================================================
+# TALLER COMPLETO DE MANEJO DE DATOS - TENDEROS Y PENETRACIÓN DE INTERNET
+# =========================================================================
+
+# 0. Cargar librerías necesarias
+library(tidyverse)
 library(haven)
-library(dplyr)
-library(tidyr)
-library(knitr)
-library(kableExtra)
 
-# 1. Cargar datos y convertir etiquetas de Stata a texto
-TenderosFU03_Publica <- read_dta("TenderosFU03_Publica.dta") %>%
-  as_factor()
+# 1. Cargar la base de microdatos de tenderos
+tenderos_raw <- read_dta("C:/Users/prestamour/Downloads/TenderosFU03_Publica.dta")
 
-# 2. Detectar nombres de columnas
-col_munic <- grep("munic|depto", names(TenderosFU03_Publica),
-                  ignore.case = TRUE, value = TRUE)[1]
-col_net   <- grep("internet", names(TenderosFU03_Publica),
-                  ignore.case = TRUE, value = TRUE)[1]
+# Definir diccionario de nombres para las 11 actividades económicas
+etiquetas_actividades <- c(
+  "actG1"  = "Tienda",
+  "actG2"  = "Comida preparada",
+  "actG3"  = "Peluqueria y belleza",
+  "actG4"  = "Ropa",
+  "actG5"  = "Otras variedades",
+  "actG6"  = "Papelería y comunicaciones",
+  "actG7"  = "Vida nocturna",
+  "actG8"  = "Productos bajo inventario",
+  "actG9"  = "Salud",
+  "actG10" = "Servicios",
+  "actG11" = "Ferretería y afines"
+)
 
-# 3. Generar la tabla con columnas independientes
-tabla_cruzada <- TenderosFU03_Publica %>%
-  select(Munic = all_of(col_munic), Uso = all_of(col_net)) %>%
-  filter(!is.na(Munic), !is.na(Uso)) %>%
-  count(Munic, Uso) %>%
-  group_by(Munic) %>%
-  mutate(Porcentaje = sprintf("%.2f%%", (n / sum(n)) * 100)) %>%
-  select(-n) %>%
-  pivot_wider(
-    names_from = Uso,
-    values_from = Porcentaje,
-    values_fill = "0.00%"
+# -------------------------------------------------------------------------
+# TAREA 1: Penetración de Internet por Ciudad / Municipio
+# -------------------------------------------------------------------------
+tarea1_muni <- tenderos_raw %>%
+  group_by(Munic_Dept) %>%
+  summarise(
+    internet_promedio = mean(uso_internet == 1, na.rm = TRUE),
+    total_tiendas = n(),
+    .groups = "drop"
   ) %>%
-  rename("Municipio/departamento" = Munic)
+  mutate(internet_pct = scales::percent(internet_promedio, accuracy = 0.1))
 
-# 4. Renderizar la tabla con alineación y bordes claros
-cols_internet <- ncol(tabla_cruzada) - 1
+print("=== TAREA 1: PENETRACIÓN POR MUNICIPIO ===")
+print(tarea1_muni)
 
-tabla_cruzada %>%
-  kable(align = c("l", rep("c", cols_internet))) %>%
-  add_header_above(c(" " = 1, "Uso de internet" = cols_internet)) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+
+# -------------------------------------------------------------------------
+# TAREA 2: Penetración de Internet por Sector Comercial
+# -------------------------------------------------------------------------
+tarea2_sector <- tenderos_raw %>%
+  pivot_longer(
+    cols = starts_with("actG"),
+    names_to = "actG",
+    values_to = "realiza_actividad"
+  ) %>%
+  filter(realiza_actividad == 1) %>%
+  group_by(actG) %>%
+  summarise(
+    internet_promedio = mean(uso_internet == 1, na.rm = TRUE),
+    total_tiendas = n(),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Actividad = recode(actG, !!!etiquetas_actividades),
+    internet_pct = scales::percent(internet_promedio, accuracy = 0.1)
+  ) %>%
+  arrange(desc(internet_promedio))
+
+print("=== TAREA 2: PENETRACIÓN POR SECTOR COMERCIAL ===")
+print(tarea2_sector %>% select(actG, Actividad, internet_pct, total_tiendas))
+
+
+# -------------------------------------------------------------------------
+# TAREA 3: Penetración por Municipio x Sector Comercial
+# -------------------------------------------------------------------------
+tarea3_muni_act <- tenderos_raw %>%
+  pivot_longer(
+    cols = starts_with("actG"),
+    names_to = "actG",
+    values_to = "realiza_actividad"
+  ) %>%
+  filter(realiza_actividad == 1) %>%
+  group_by(Munic_Dept, actG) %>%
+  summarise(
+    internet_promedio = mean(uso_internet == 1, na.rm = TRUE),
+    total_tiendas = n(),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Actividad = recode(actG, !!!etiquetas_actividades),
+    internet_pct = scales::percent(internet_promedio, accuracy = 0.1)
+  )
+
+print("=== TAREA 3: PENETRACIÓN POR MUNICIPIO X ACTIVIDAD ===")
+print(tarea3_muni_act)
+
+
+# -------------------------------------------------------------------------
+# TAREA 4: Estructura para Unión con Población DANE (TerriData / DIVIPOLA)
+# -------------------------------------------------------------------------
+# poblacion_dane <- read_csv("C:/Users/prestamour/Downloads/TU_ARCHIVO.csv")
+
+# tarea4_merged <- tarea1_muni %>%
+#   left_join(poblacion_dane, by = "DIVIPOLA")
